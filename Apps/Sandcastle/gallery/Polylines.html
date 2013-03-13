@@ -51,18 +51,29 @@ require([
         var imageMaterial = new Cesium.Material({
             context : widget.scene.getContext(),
             fabric : {
-                uniforms : {
-                    image : '../images/part3.bmp'
+                materials : {
+                    alphaMaterial : {
+                        type : 'AlphaMap',
+                        uniforms : {
+                            image : '../images/ion_glow_alpha.jpg',
+                            channel : 'r'
+                        }
+                    },
+                    diffuseMaterial : {
+                        type : 'DiffuseMap',
+                        uniforms : {
+                            image : '../images/ion_glow.jpg'
+                        }
+                    }
                 },
                 components : {
-                    diffuse : 'texture2D(image, materialInput.st).rgb',
-                    alpha : 'czm_luminance(material.diffuse)'
+                    diffuse : 'pow(diffuseMaterial.diffuse, vec3(0.4))',
+                    alpha : 'alphaMaterial.alpha'
                 }
             }
         });
         polyline.setMaterial(imageMaterial);
 
-        /*
         // Set a polyline's color
         var coloredPolyline = polylines.add();
         Sandcastle.declare(coloredPolyline);    // For highlighting on mouseover in Sandcastle.
@@ -77,8 +88,9 @@ require([
             alpha : 1.0
         });
         coloredPolyline.setWidth(10.0);
-        var glowMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineGlowType);
-        coloredPolyline.setMaterial(glowMaterial);
+        //var glowMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineGlowType);
+        //coloredPolyline.setMaterial(glowMaterial);
+        coloredPolyline.setMaterial(imageMaterial);
         
         // set a polyline's color per position
         var perPositionColoredPolyline = polylines.add();
@@ -100,6 +112,7 @@ require([
                 alpha : 1.0
             }
         ]);
+        perPositionColoredPolyline.setMaterial(imageMaterial);
 
         // Set a polyline's width
         var widePolyline = polylines.add();
@@ -113,16 +126,16 @@ require([
         widePolyline.setWidth(10.0);
         
         // Set the polyline's material to have an outline
-        var outlineMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineOutlineType);
-        outlineMaterial.uniforms.outlineWidth = 5.0;
-        widePolyline.setMaterial(outlineMaterial);
+        //var outlineMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineOutlineType);
+        //outlineMaterial.uniforms.outlineWidth = 5.0;
+        //widePolyline.setMaterial(outlineMaterial);
         widePolyline.setDefaultOutlineColor({
             red : 1.0,
             green : 0.0,
             blue : 0.0,
             alpha : 1.0
         });
-        */
+        widePolyline.setMaterial(imageMaterial);
         
         primitives.add(polylines);
 
