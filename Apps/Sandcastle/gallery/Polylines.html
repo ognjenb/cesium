@@ -45,10 +45,24 @@ require([
         var polyline = polylines.add();
         Sandcastle.declare(polyline);   // For highlighting on mouseover in Sandcastle.
         polyline.setPositions(ellipsoid.cartographicArrayToCartesianArray([
-            Cesium.Cartographic.fromDegrees(-120.0, 40.0),
-            Cesium.Cartographic.fromDegrees(-110.0, 30.0)
+            Cesium.Cartographic.fromDegrees(-120.0, 40.0, 500000.0),
+            Cesium.Cartographic.fromDegrees(-110.0, 30.0, 500000.0)
         ]));
+        var imageMaterial = new Cesium.Material({
+            context : widget.scene.getContext(),
+            fabric : {
+                uniforms : {
+                    image : '../images/part3.bmp'
+                },
+                components : {
+                    diffuse : 'texture2D(image, materialInput.st).rgb',
+                    alpha : 'czm_luminance(material.diffuse)'
+                }
+            }
+        });
+        polyline.setMaterial(imageMaterial);
 
+        /*
         // Set a polyline's color
         var coloredPolyline = polylines.add();
         Sandcastle.declare(coloredPolyline);    // For highlighting on mouseover in Sandcastle.
@@ -65,7 +79,6 @@ require([
         coloredPolyline.setWidth(10.0);
         var glowMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineGlowType);
         coloredPolyline.setMaterial(glowMaterial);
-        
         
         // set a polyline's color per position
         var perPositionColoredPolyline = polylines.add();
@@ -109,9 +122,11 @@ require([
             blue : 0.0,
             alpha : 1.0
         });
-
+        */
+        
         primitives.add(polylines);
 
+        /*
         // Draw a line in a local reference frame
         // The arrow points to the east, i.e. along the local x-axis.
         var localPolylines = new Cesium.PolylineCollection();
@@ -127,6 +142,7 @@ require([
         var arrowMaterial = Cesium.Material.fromType(undefined, Cesium.Material.PolylineArrowType);
         localPolyline.setMaterial(arrowMaterial);
         primitives.add(localPolylines);
+        */
     }
 
     var widget = new CesiumViewerWidget({

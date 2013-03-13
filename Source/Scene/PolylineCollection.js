@@ -66,12 +66,12 @@ define([
     var attributeIndices = {
         position3DHigh : 0,
         position3DLow : 1,
-        position2DHigh : 2,
-        position2DLow : 3,
-        prev : 4,
-        next : 5,
-        color : 6,
-        misc : 7
+        //position2DHigh : 2,
+        //position2DLow : 3,
+        otherPosition3DHigh : 2,
+        otherPosition3DLow : 3,
+        color : 4,
+        misc : 5
     };
 
     /**
@@ -178,7 +178,7 @@ define([
         this._colorVertexArrays = [];
         this._pickColorVertexArrays = [];
         this._positionBuffer = undefined;
-        this._adjacencyBuffer = undefined;
+        this._otherPositionBuffer = undefined;
         this._colorBuffer = undefined;
         this._pickColorBuffer = undefined;
         this._miscBuffer = undefined;
@@ -384,7 +384,7 @@ define([
         this._removePolylines();
         this._updateMode(frameState);
 
-        var bucket;
+        //var bucket;
         var polyline;
         var length;
         var buckets;
@@ -421,6 +421,8 @@ define([
             if (properties[POSITION_SIZE_INDEX] || properties[MATERIAL_INDEX] || createVertexArrays) {
                 this._createVertexArrays(context);
             } else {
+                this._createVertexArrays(context);
+                /*
                 length = polylinesToUpdate.length;
                 polylineBuckets = this._polylineBuckets;
                 for ( var ii = 0; ii < length; ++ii) {
@@ -447,6 +449,7 @@ define([
                     }
                     polyline._clean();
                 }
+                */
             }
             polylinesToUpdate.length = 0;
             this._polylinesUpdated = false;
@@ -661,48 +664,52 @@ define([
             }
         }
         if (totalLength > 0) {
-            var positionArray = new Float32Array(2 * totalLength * 3 * 2);
-            var adjacencyArray = new Float32Array(2 * totalLength * 4 * 2);
-            var colorArray = new Float32Array(totalLength * 4 * 2);
-            var pickColorArray = new Uint8Array(totalLength * 4 * 2);
-            var miscArray = new Float32Array(totalLength * 4 * 2);
-            var position3DArray;
+            var length = (totalLength - 1) * 8; // (number of line segments) * (8 vertices)
+            var positionArray = new Float32Array(2 * length * 3);
+            var otherPositionArray = new Float32Array(2 * length * 3);
+            var colorArray = new Float32Array(length * 4);
+            var pickColorArray = new Uint8Array(length * 4);
+            var miscArray = new Float32Array(length * 4);
+            //var position3DArray;
 
             var positionIndex = 0;
-            var adjacencyIndex = 0;
+            var otherPositionIndex = 0;
             var colorIndex = 0;
             var miscIndex = 0;
             for (x in polylineBuckets) {
                 if (polylineBuckets.hasOwnProperty(x)) {
                     bucket = polylineBuckets[x];
-                    bucket.write(positionArray, adjacencyArray, colorArray, pickColorArray, miscArray, positionIndex, adjacencyIndex, colorIndex, miscIndex, context);
+                    bucket.write(positionArray, otherPositionArray, colorArray, pickColorArray, miscArray, positionIndex, otherPositionIndex, colorIndex, miscIndex, context);
+                    /*
                     if (this._mode === SceneMode.MORPHING) {
                         if (typeof position3DArray === 'undefined') {
                             position3DArray = new Float32Array(2 * totalLength * 3 * 2);
                         }
                         bucket.writeForMorph(position3DArray, adjacencyArray, positionIndex, adjacencyIndex);
                     }
-                    var bucketLength = bucket.lengthOfPositions;
-                    positionIndex += 2 * bucketLength * 3 * 2;
-                    adjacencyIndex += 2 * bucketLength * 4 * 2;
-                    colorIndex += bucketLength * 4 * 2;
-                    miscIndex += bucketLength * 4 * 2;
+                    */
+                    var bucketLength = (bucket.lengthOfPositions - 1) * 8;
+                    positionIndex += 2 * bucketLength * 3;
+                    otherPositionIndex += 2 * bucketLength * 4;
+                    colorIndex += bucketLength * 4;
+                    miscIndex += bucketLength * 4;
                     offset = bucket.updateIndices(totalIndices, vertexBufferOffset, vertexArrayBuckets, offset);
                 }
             }
             this._positionBuffer = context.createVertexBuffer(positionArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
+            /*
             var position3DBuffer;
             if (typeof position3DArray !== 'undefined') {
                 position3DBuffer = context.createVertexBuffer(position3DArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
             }
-            this._adjacencyBuffer = context.createVertexBuffer(adjacencyArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
+            */
+            this._otherPositionBuffer = context.createVertexBuffer(otherPositionArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
             this._colorBuffer = context.createVertexBuffer(colorArray, this._buffersUsage[COLOR_INDEX].bufferUsage);
             this._pickColorBuffer = context.createVertexBuffer(pickColorArray, BufferUsage.STATIC_DRAW);
             this._miscBuffer = context.createVertexBuffer(miscArray, this._buffersUsage[MISC_INDEX].bufferUsage);
             var colorSizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
             var pickColorSizeInBytes = 4 * Uint8Array.BYTES_PER_ELEMENT;
             var positionSizeInBytes = 3 * Float32Array.BYTES_PER_ELEMENT;
-            var adjacencySizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
             var miscSizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
             var vbo = 0;
             var numberOfIndicesArrays = totalIndices.length;
@@ -715,8 +722,6 @@ define([
                     vbo += vertexBufferOffset[k];
                     var positionHighOffset = 2 * (k * (positionSizeInBytes * SIXTYFOURK) - vbo * positionSizeInBytes);//componentsPerAttribute(3) * componentDatatype(4)
                     var positionLowOffset = positionSizeInBytes + positionHighOffset;
-                    var prevOffset = 2 * (k * (adjacencySizeInBytes * SIXTYFOURK) - vbo * adjacencySizeInBytes);
-                    var nextOffset = adjacencySizeInBytes + prevOffset;
                     var vertexColorBufferOffset = k * (colorSizeInBytes * SIXTYFOURK) - vbo * colorSizeInBytes;
                     var vertexPickColorBufferOffset = k * (pickColorSizeInBytes * SIXTYFOURK) - vbo * pickColorSizeInBytes;
                     var vertexMiscBufferOffset = k * (miscSizeInBytes * SIXTYFOURK) - vbo * miscSizeInBytes;
@@ -732,7 +737,7 @@ define([
                         componentDatatype : ComponentDatatype.FLOAT,
                         offsetInBytes : positionLowOffset,
                         strideInBytes : 2 * positionSizeInBytes
-                    }, {
+                    }, /*{
                         index : attributeIndices.position2DHigh,
                         componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
@@ -744,20 +749,18 @@ define([
                         componentDatatype : ComponentDatatype.FLOAT,
                         offsetInBytes : positionLowOffset,
                         strideInBytes : 2 * positionSizeInBytes
-                    }, {
-                        index : attributeIndices.prev,
-                        componentsPerAttribute : 4,
+                    },*/ {
+                        index : attributeIndices.otherPosition3DHigh,
+                        componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
-                        vertexBuffer : this._adjacencyBuffer,
-                        offsetInBytes : prevOffset,
-                        strideInBytes : 2 * adjacencySizeInBytes
+                        offsetInBytes : positionHighOffset,
+                        strideInBytes : 2 * positionSizeInBytes
                     }, {
-                        index : attributeIndices.next,
-                        componentsPerAttribute : 4,
+                        index : attributeIndices.otherPosition3DLow,
+                        componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
-                        vertexBuffer : this._adjacencyBuffer,
-                        offsetInBytes : nextOffset,
-                        strideInBytes : 2 * adjacencySizeInBytes
+                        offsetInBytes : positionLowOffset,
+                        strideInBytes : 2 * positionSizeInBytes
                     }, {
                         index : attributeIndices.color,
                         componentsPerAttribute : 4,
@@ -784,7 +787,7 @@ define([
                         componentDatatype : ComponentDatatype.FLOAT,
                         offsetInBytes : positionLowOffset,
                         strideInBytes : 2 * positionSizeInBytes
-                    }, {
+                    }, /*{
                         index : attributeIndices.position2DHigh,
                         componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
@@ -796,20 +799,18 @@ define([
                         componentDatatype : ComponentDatatype.FLOAT,
                         offsetInBytes : positionLowOffset,
                         strideInBytes : 2 * positionSizeInBytes
-                    }, {
-                        index : attributeIndices.prev,
-                        componentsPerAttribute : 4,
+                    },*/ {
+                        index : attributeIndices.otherPosition3DHigh,
+                        componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
-                        vertexBuffer : this._adjacencyBuffer,
-                        offsetInBytes : prevOffset,
-                        strideInBytes : 2 * adjacencySizeInBytes
+                        offsetInBytes : positionHighOffset,
+                        strideInBytes : 2 * positionSizeInBytes
                     }, {
-                        index : attributeIndices.next,
-                        componentsPerAttribute : 4,
+                        index : attributeIndices.otherPosition3DLow,
+                        componentsPerAttribute : 3,
                         componentDatatype : ComponentDatatype.FLOAT,
-                        vertexBuffer : this._adjacencyBuffer,
-                        offsetInBytes : nextOffset,
-                        strideInBytes : 2 * adjacencySizeInBytes
+                        offsetInBytes : positionLowOffset,
+                        strideInBytes : 2 * positionSizeInBytes
                     }, {
                         index : attributeIndices.color,
                         componentsPerAttribute : 4,
@@ -825,16 +826,20 @@ define([
                         offsetInBytes : vertexMiscBufferOffset
                     }];
 
-                    if (this._mode === SceneMode.SCENE3D) {
+                    //if (this._mode === SceneMode.SCENE3D) {
                         attributes[0].vertexBuffer = this._positionBuffer;
                         attributes[1].vertexBuffer = this._positionBuffer;
-                        attributes[2].value = [0.0, 0.0, 0.0];
-                        attributes[3].value = [0.0, 0.0, 0.0];
+                        attributes[2].vertexBuffer = this._otherPositionBuffer;
+                        attributes[3].vertexBuffer = this._otherPositionBuffer;
+                        //attributes[2].value = [0.0, 0.0, 0.0];
+                        //attributes[3].value = [0.0, 0.0, 0.0];
                         attributesPickColor[0].vertexBuffer = this._positionBuffer;
                         attributesPickColor[1].vertexBuffer = this._positionBuffer;
-                        attributesPickColor[2].value = [0.0, 0.0, 0.0];
-                        attributesPickColor[3].value = [0.0, 0.0, 0.0];
-                    } else if (this._mode === SceneMode.SCENE2D || this._mode === SceneMode.COLUMBUS_VIEW) {
+                        attributesPickColor[2].vertexBuffer = this._otherPositionBuffer;
+                        attributesPickColor[3].vertexBuffer = this._otherPositionBuffer;
+                        //attributesPickColor[2].value = [0.0, 0.0, 0.0];
+                        //attributesPickColor[3].value = [0.0, 0.0, 0.0];
+                    /*} else if (this._mode === SceneMode.SCENE2D || this._mode === SceneMode.COLUMBUS_VIEW) {
                         attributes[0].value = [0.0, 0.0, 0.0];
                         attributes[1].value = [0.0, 0.0, 0.0];
                         attributes[2].vertexBuffer = this._positionBuffer;
@@ -852,7 +857,7 @@ define([
                         attributesPickColor[1].vertexBuffer = position3DBuffer;
                         attributesPickColor[2].vertexBuffer = this._positionBuffer;
                         attributesPickColor[3].vertexBuffer = this._positionBuffer;
-                    }
+                    }*/
 
                     var va = context.createVertexArray(attributes, indexBuffer);
                     var vaPickColor = context.createVertexArray(attributesPickColor, indexBuffer);
@@ -1026,55 +1031,32 @@ define([
         return polyline._setSegments(segments);
     };
 
-    var computeAdjacencyAnglesPosition = new Cartesian3();
-
-    function computeAdjacencyAngles(position, index, positions, result, modelMatrix) {
-        // TODO handle cross idl
-        if (typeof result === 'undefined') {
-            result = new Cartesian4();
-        }
-
-        var prev = computeAdjacencyAnglesPosition;
-        if (index === 0) {
-            Cartesian3.ZERO.clone(prev);
-        } else {
-            prev = (typeof modelMatrix === 'undefined') ? Cartesian3.clone(positions[index - 1], prev) : Matrix4.multiplyByPoint(modelMatrix, positions[index - 1], prev);
-            Cartesian3.subtract(prev, position, prev);
-        }
-        Cartesian3.normalize(prev, prev);
-        result.x = Math.acos(prev.z);
-        result.y = Math.atan2(prev.y, prev.x);
-
-        var next = computeAdjacencyAnglesPosition;
-        if (index === positions.length - 1) {
-            Cartesian3.ZERO.clone(next);
-        } else {
-            next = (typeof modelMatrix === 'undefined') ? Cartesian3.clone(positions[index + 1], next) : Matrix4.multiplyByPoint(modelMatrix, positions[index + 1], next);
-            Cartesian3.subtract(next, position, next);
-        }
-        Cartesian3.normalize(next, next);
-        result.z = Math.acos(next.z);
-        result.w = Math.atan2(next.y, next.x);
-
-        return result;
-    }
-
     var scratchWritePosition = new Cartesian3();
-    var scratchWriteAdjacency = new Cartesian4();
+    var scratchWriteOtherPosition = new Cartesian3();
     var scratchWriteColor = new Color();
-    var scratchWriteColorArray = new Array(1);
-    var scratchWriteOutlineColorArray = new Array(1);
+    var scratchWriteColorArray = new Array(2);
+    var scratchWriteOutlineColorArray = new Array(2);
+
+    var offsetDirUv = new Array(32);
+    offsetDirUv[0 ] = 1.0; offsetDirUv[1 ] =  1.0; offsetDirUv[2 ] = 1.0; offsetDirUv[3 ] = 0.0;
+    offsetDirUv[4 ] = 1.0; offsetDirUv[5 ] = -1.0; offsetDirUv[6 ] = 1.0; offsetDirUv[7 ] = 1.0;
+    offsetDirUv[8 ] = 0.0; offsetDirUv[9 ] =  1.0; offsetDirUv[10] = 0.5; offsetDirUv[11] = 0.0;
+    offsetDirUv[12] = 0.0; offsetDirUv[13] = -1.0; offsetDirUv[14] = 0.5; offsetDirUv[15] = 1.0;
+    offsetDirUv[16] = 0.0; offsetDirUv[17] = -1.0; offsetDirUv[18] = 0.5; offsetDirUv[19] = 0.0;
+    offsetDirUv[20] = 0.0; offsetDirUv[21] =  1.0; offsetDirUv[22] = 0.5; offsetDirUv[23] = 1.0;
+    offsetDirUv[24] = 1.0; offsetDirUv[25] = -1.0; offsetDirUv[26] = 0.0; offsetDirUv[27] = 0.0;
+    offsetDirUv[28] = 1.0; offsetDirUv[29] =  1.0; offsetDirUv[30] = 0.0; offsetDirUv[31] = 1.0;
 
     /**
      * @private
      */
-    PolylineBucket.prototype.write = function(positionArray, adjacencyArray, colorArray, pickColorArray, miscArray, positionIndex, adjacencyIndex, colorIndex, miscIndex, context) {
+    PolylineBucket.prototype.write = function(positionArray, otherPositionArray, colorArray, pickColorArray, miscArray, positionIndex, otherPositionIndex, colorIndex, miscIndex, context) {
         var polylines = this.polylines;
         var length = polylines.length;
         for ( var i = 0; i < length; ++i) {
             var polyline = polylines[i];
-            var width = polyline.getWidth();
-            var show = polyline.getShow();
+            //var width = polyline.getWidth();
+            //var show = polyline.getShow();
             var positions = this._getPositions(polyline);
             var positionsLength = positions.length;
 
@@ -1083,6 +1065,7 @@ define([
             if (typeof colors === 'undefined' || colors.length !== positionsLength) {
                 colors = scratchWriteColorArray;
                 colors[0] = polyline.getDefaultColor();
+                colors[1] = polyline.getDefaultColor();
                 colorIncrement = 0;
             }
 
@@ -1091,6 +1074,7 @@ define([
             if (typeof outlineColors === 'undefined' || outlineColors.length !== positionsLength) {
                 outlineColors = scratchWriteOutlineColorArray;
                 outlineColors[0] = polyline.getDefaultOutlineColor();
+                outlineColors[1] = polyline.getDefaultOutlineColor();
                 outlineColorIncrement = 0;
             }
 
@@ -1099,31 +1083,25 @@ define([
             var vertexColorIndex = 0;
             var vertexOutlineColorIndex = 0;
 
-            for ( var j = 0; j < positionsLength; ++j) {
+            for ( var j = 0; j < positionsLength - 1; ++j) {
                 var position = positions[j];
                 scratchWritePosition.x = position.x;
                 scratchWritePosition.y = position.y;
                 scratchWritePosition.z = (this.mode !== SceneMode.SCENE2D) ? position.z : 0.0;
 
-                var adjacencyAngles = computeAdjacencyAngles(position, j, positions, scratchWriteAdjacency);
+                position = positions[j + 1];
+                scratchWriteOtherPosition.x = position.x;
+                scratchWriteOtherPosition.y = position.y;
+                scratchWriteOtherPosition.z = (this.mode !== SceneMode.SCENE2D) ? position.z : 0.0;
 
-                for (var k = 0; k < 2; ++k) {
+                var color, outlineColor, offsetDirUvIndex;
+
+                for (var k = 0; k < 4; ++k) {
                     EncodedCartesian3.writeElements(scratchWritePosition, positionArray, positionIndex);
+                    EncodedCartesian3.writeElements(scratchWriteOtherPosition, otherPositionArray, otherPositionIndex);
 
-                    if (this.mode === SceneMode.SCENE3D) {
-                        adjacencyArray[adjacencyIndex] = adjacencyAngles.x;
-                        adjacencyArray[adjacencyIndex + 1] = adjacencyAngles.y;
-                        adjacencyArray[adjacencyIndex + 4] = adjacencyAngles.z;
-                        adjacencyArray[adjacencyIndex + 5] = adjacencyAngles.w;
-                    } else {
-                        adjacencyArray[adjacencyIndex + 2] = adjacencyAngles.x;
-                        adjacencyArray[adjacencyIndex + 3] = adjacencyAngles.y;
-                        adjacencyArray[adjacencyIndex + 6] = adjacencyAngles.z;
-                        adjacencyArray[adjacencyIndex + 7] = adjacencyAngles.w;
-                    }
-
-                    var color = colors[vertexColorIndex];
-                    var outlineColor = outlineColors[vertexOutlineColorIndex];
+                    color = colors[vertexColorIndex];
+                    outlineColor = outlineColors[vertexOutlineColorIndex];
 
                     scratchWriteColor.red = color.alpha;
                     scratchWriteColor.green = outlineColor.alpha;
@@ -1137,13 +1115,45 @@ define([
                     pickColorArray[colorIndex + 2] = pickColor.blue;
                     pickColorArray[colorIndex + 3] = 255;
 
-                    miscArray[miscIndex] = j / (positionsLength - 1);     // s tex coord
-                    miscArray[miscIndex + 1] = 2 * k - 1;           // expand direction
-                    miscArray[miscIndex + 2] = width;
-                    miscArray[miscIndex + 3] = show;
+                    offsetDirUvIndex = 4 * k;
+                    miscArray[miscIndex] = offsetDirUv[offsetDirUvIndex];
+                    miscArray[miscIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
+                    miscArray[miscIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
+                    miscArray[miscIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
 
                     positionIndex += 6;
-                    adjacencyIndex += 8;
+                    otherPositionIndex += 6;
+                    colorIndex += 4;
+                    miscIndex += 4;
+                }
+
+                for (var l = 0; l < 4; ++l) {
+                    EncodedCartesian3.writeElements(scratchWriteOtherPosition, positionArray, positionIndex);
+                    EncodedCartesian3.writeElements(scratchWritePosition, otherPositionArray, otherPositionIndex);
+
+                    color = colors[vertexColorIndex + 1];
+                    outlineColor = outlineColors[vertexOutlineColorIndex + 1];
+
+                    scratchWriteColor.red = color.alpha;
+                    scratchWriteColor.green = outlineColor.alpha;
+
+                    colorArray[colorIndex] = Color.encode(color);
+                    colorArray[colorIndex + 1] = Color.encode(outlineColor);
+                    colorArray[colorIndex + 2] = Color.encode(scratchWriteColor);
+
+                    pickColorArray[colorIndex] = pickColor.red;
+                    pickColorArray[colorIndex + 1] = pickColor.green;
+                    pickColorArray[colorIndex + 2] = pickColor.blue;
+                    pickColorArray[colorIndex + 3] = 255;
+
+                    offsetDirUvIndex = 16 + 4 * l;
+                    miscArray[miscIndex] = offsetDirUv[offsetDirUvIndex];
+                    miscArray[miscIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
+                    miscArray[miscIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
+                    miscArray[miscIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
+
+                    positionIndex += 6;
+                    otherPositionIndex += 6;
                     colorIndex += 4;
                     miscIndex += 4;
                 }
@@ -1154,9 +1164,11 @@ define([
         }
     };
 
+    // TODO
     /**
      * @private
      */
+    /*
     PolylineBucket.prototype.writeForMorph = function(positionArray, adjacencyArray, positionIndex, adjacencyIndex) {
         var modelMatrix = this.modelMatrix;
         var position;
@@ -1218,6 +1230,7 @@ define([
             }
         }
     };
+    */
 
     /**
      * @private
@@ -1230,49 +1243,38 @@ define([
         var indices = totalIndices[totalIndices.length - 1];
         var indicesCount = 0;
         if (indices.length > 0) {
-            indicesCount = indices[indices.length - 1] + 1;
+            indicesCount = indices[indices.length - 1];
         }
         var polylines = this.polylines;
         var length = polylines.length;
         for ( var i = 0; i < length; ++i) {
             var polyline = polylines[i];
             var positions = polyline.getPositions();
-            var positionsLength = positions.length;
+            var positionsLength = positions.length - 1;
             if (positions.length > 0) {
                 for ( var j = 0; j < positionsLength; ++j) {
-                    if (j !== positionsLength - 1) {
-                        if (indicesCount + 3 >= SIXTYFOURK - 1) {
-                            vertexBufferOffset.push(2);
-                            indices = [];
-                            totalIndices.push(indices);
-                            indicesCount = 0;
-                            bucketLocator.count = count;
-                            count = 0;
-                            offset = 0;
-                            bucketLocator = new VertexArrayBucketLocator(0, 0, this);
-                            vertexArrayBuckets[++vaCount] = [bucketLocator];
-                        }
-
-                        indices.push(indicesCount, indicesCount + 2, indicesCount + 1);
-                        indices.push(indicesCount + 1, indicesCount + 2, indicesCount + 3);
-
-                        count += 6;
-                        offset += 6;
-                        indicesCount += 2;
+                    if (indicesCount + 18 >= SIXTYFOURK - 1) {
+                        //vertexBufferOffset.push(2);
+                        indices = [];
+                        totalIndices.push(indices);
+                        indicesCount = 0;
+                        bucketLocator.count = count;
+                        count = 0;
+                        offset = 0;
+                        bucketLocator = new VertexArrayBucketLocator(0, 0, this);
+                        vertexArrayBuckets[++vaCount] = [bucketLocator];
                     }
-                }
-                if (indicesCount + 3 < SIXTYFOURK - 1) {
-                    indicesCount += 2;
-                } else {
-                    vertexBufferOffset.push(0);
-                    indices = [];
-                    totalIndices.push(indices);
-                    indicesCount = 0;
-                    bucketLocator.count = count;
-                    offset = 0;
-                    count = 0;
-                    bucketLocator = new VertexArrayBucketLocator(0, 0, this);
-                    vertexArrayBuckets[++vaCount] = [bucketLocator];
+
+                    indices.push(indicesCount, indicesCount + 1, indicesCount + 2);
+                    indices.push(indicesCount + 2, indicesCount + 1, indicesCount + 3);
+                    indices.push(indicesCount + 3, indicesCount + 2, indicesCount + 4);
+                    indices.push(indicesCount + 4, indicesCount + 3, indicesCount + 5);
+                    indices.push(indicesCount + 4, indicesCount + 5, indicesCount + 6);
+                    indices.push(indicesCount + 6, indicesCount + 5, indicesCount + 7);
+
+                    count += 18;
+                    offset += 18;
+                    indicesCount += 8;
                 }
             }
             polyline._clean();
@@ -1281,9 +1283,11 @@ define([
         return offset;
     };
 
+    // TODO
     /**
      * @private
      */
+    /*
     PolylineBucket.prototype._updateIndices2D = function(totalIndices, vertexBufferOffset, vertexArrayBuckets, offset) {
         var vaCount = vertexArrayBuckets.length - 1;
         var bucketLocator = new VertexArrayBucketLocator(0, offset, this);
@@ -1390,6 +1394,7 @@ define([
         bucketLocator.count = count;
         return offset;
     };
+    */
 
     /**
      * @private
@@ -1468,11 +1473,13 @@ define([
     };
 
 
-    var scratchAdjacency = new Cartesian4();
+    // TODO
+    //var scratchAdjacency = new Cartesian4();
 
     /**
      * @private
      */
+    /*
     PolylineBucket.prototype.writePositionsUpdate = function(positionIndex, polyline, positionBuffer, adjacencyBuffer) {
         var positionsLength = polyline._actualLength;
         if (positionsLength) {
@@ -1514,14 +1521,16 @@ define([
             adjacencyBuffer.copyFromArrayView(adjacencyArray, 2 * 4 * Float32Array.BYTES_PER_ELEMENT * positionIndex * 2);
         }
     };
+    */
 
-    var scratchColorAlpha = new Color();
-    var scratchColorArray = new Array(1);
-    var scratchOutlineColorArray = new Array(1);
+    //var scratchColorAlpha = new Color();
+    //var scratchColorArray = new Array(1);
+    //var scratchOutlineColorArray = new Array(1);
 
     /**
      * @private
      */
+    /*
     PolylineBucket.prototype.writeColorUpdate = function(positionIndex, polyline, buffer) {
         var positionsLength = polyline._actualLength;
         if (positionsLength) {
@@ -1571,10 +1580,12 @@ define([
             buffer.copyFromArrayView(colorsArray, 4 * Float32Array.BYTES_PER_ELEMENT * positionIndex * 2);
         }
     };
+    */
 
     /**
      * @private
      */
+    /*
     PolylineBucket.prototype.writeMiscUpdate = function(positionIndex, polyline, buffer) {
         var positionsLength = polyline._actualLength;
         if (positionsLength) {
@@ -1596,6 +1607,7 @@ define([
             buffer.copyFromArrayView(miscArray, 4 * Float32Array.BYTES_PER_ELEMENT * positionIndex * 2);
         }
     };
+    */
 
     return PolylineCollection;
 });
