@@ -49,14 +49,10 @@ define([
         PolylineFSPick) {
     "use strict";
 
-    // TODO:
-    //    better name than 'misc' for tex coord, expansion direction, show and width attribute
-    //    adjacency info in 2d at idl
-
-    var MISC_INDEX = Polyline.MISC_INDEX;
     var POSITION_INDEX = Polyline.POSITION_INDEX;
     var COLOR_INDEX = Polyline.COLOR_INDEX;
     var MATERIAL_INDEX = Polyline.MATERIAL_INDEX;
+    var MISC_INDEX = Polyline.MISC_INDEX;
     //POSITION_SIZE_INDEX is needed for when the polyline's position array changes size.
     //When it does, we need to recreate the indicesBuffer.
     var POSITION_SIZE_INDEX = Polyline.POSITION_SIZE_INDEX;
@@ -71,7 +67,8 @@ define([
         otherPosition3DHigh : 2,
         otherPosition3DLow : 3,
         color : 4,
-        misc : 5
+        offsetDirUV : 5,
+        misc : 6
     };
 
     /**
@@ -159,10 +156,10 @@ define([
 
         // The buffer usage for each attribute is determined based on the usage of the attribute over time.
         this._buffersUsage = [
-                              {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}, // MISC_INDEX
                               {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}, // POSITION_INDEX
                               {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}, // COLOR_INDEX
-                              {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}  // MATERIAL_INDEX
+                              {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}, // MATERIAL_INDEX
+                              {bufferUsage: BufferUsage.STATIC_DRAW, frameCount:0}  // MISC_INDEX
         ];
 
         this._mode = undefined;
@@ -181,6 +178,7 @@ define([
         this._otherPositionBuffer = undefined;
         this._colorBuffer = undefined;
         this._pickColorBuffer = undefined;
+        this._offsetDirUVBuffer = undefined;
         this._miscBuffer = undefined;
     };
 
@@ -669,17 +667,19 @@ define([
             var otherPositionArray = new Float32Array(2 * length * 3);
             var colorArray = new Float32Array(length * 4);
             var pickColorArray = new Uint8Array(length * 4);
-            var miscArray = new Float32Array(length * 4);
+            var offsetDirUVArray = new Float32Array(length * 4);
+            var miscArray = new Float32Array(length * 2);
             //var position3DArray;
 
             var positionIndex = 0;
             var otherPositionIndex = 0;
             var colorIndex = 0;
+            var offsetDirUVIndex = 0;
             var miscIndex = 0;
             for (x in polylineBuckets) {
                 if (polylineBuckets.hasOwnProperty(x)) {
                     bucket = polylineBuckets[x];
-                    bucket.write(positionArray, otherPositionArray, colorArray, pickColorArray, miscArray, positionIndex, otherPositionIndex, colorIndex, miscIndex, context);
+                    bucket.write(positionArray, otherPositionArray, colorArray, pickColorArray, offsetDirUVArray, miscArray, positionIndex, otherPositionIndex, colorIndex, offsetDirUVIndex, miscIndex, context);
                     /*
                     if (this._mode === SceneMode.MORPHING) {
                         if (typeof position3DArray === 'undefined') {
@@ -692,7 +692,8 @@ define([
                     positionIndex += 2 * bucketLength * 3;
                     otherPositionIndex += 2 * bucketLength * 4;
                     colorIndex += bucketLength * 4;
-                    miscIndex += bucketLength * 4;
+                    offsetDirUVIndex += bucketLength * 4;
+                    miscIndex += bucketLength * 2;
                     offset = bucket.updateIndices(totalIndices, vertexBufferOffset, vertexArrayBuckets, offset);
                 }
             }
@@ -706,11 +707,13 @@ define([
             this._otherPositionBuffer = context.createVertexBuffer(otherPositionArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
             this._colorBuffer = context.createVertexBuffer(colorArray, this._buffersUsage[COLOR_INDEX].bufferUsage);
             this._pickColorBuffer = context.createVertexBuffer(pickColorArray, BufferUsage.STATIC_DRAW);
+            this._offsetDirUVBuffer = context.createVertexBuffer(offsetDirUVArray, this._buffersUsage[POSITION_INDEX].bufferUsage);
             this._miscBuffer = context.createVertexBuffer(miscArray, this._buffersUsage[MISC_INDEX].bufferUsage);
             var colorSizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
             var pickColorSizeInBytes = 4 * Uint8Array.BYTES_PER_ELEMENT;
             var positionSizeInBytes = 3 * Float32Array.BYTES_PER_ELEMENT;
-            var miscSizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
+            var offsetDirUVSizeInBytes = 4 * Float32Array.BYTES_PER_ELEMENT;
+            var miscSizeInBytes = 2 * Float32Array.BYTES_PER_ELEMENT;
             var vbo = 0;
             var numberOfIndicesArrays = totalIndices.length;
             for ( var k = 0; k < numberOfIndicesArrays; ++k) {
@@ -724,7 +727,8 @@ define([
                     var positionLowOffset = positionSizeInBytes + positionHighOffset;
                     var vertexColorBufferOffset = k * (colorSizeInBytes * SIXTYFOURK) - vbo * colorSizeInBytes;
                     var vertexPickColorBufferOffset = k * (pickColorSizeInBytes * SIXTYFOURK) - vbo * pickColorSizeInBytes;
-                    var vertexMiscBufferOffset = k * (miscSizeInBytes * SIXTYFOURK) - vbo * miscSizeInBytes;
+                    var vertexOffsetDirUVBufferOffset = k * (offsetDirUVSizeInBytes * SIXTYFOURK) - vbo * offsetDirUVSizeInBytes;
+                    var vertexMiscOffset = k * (miscSizeInBytes * SIXTYFOURK) - vbo * miscSizeInBytes;
                     var attributes = [{
                         index : attributeIndices.position3DHigh,
                         componentsPerAttribute : 3,
@@ -768,11 +772,17 @@ define([
                         vertexBuffer : this._colorBuffer,
                         offsetInBytes : vertexColorBufferOffset
                     }, {
-                        index : attributeIndices.misc,
+                        index : attributeIndices.offsetDirUV,
                         componentsPerAttribute : 4,
                         componentDatatype : ComponentDatatype.FLOAT,
+                        vertexBuffer : this._offsetDirUVBuffer,
+                        offsetInBytes : vertexOffsetDirUVBufferOffset
+                    }, {
+                        index : attributeIndices.misc,
+                        componentsPerAttribute : 2,
+                        componentDatatype : ComponentDatatype.FLOAT,
                         vertexBuffer : this._miscBuffer,
-                        offsetInBytes : vertexMiscBufferOffset
+                        offsetInBytes : vertexMiscOffset
                     }];
 
                     var attributesPickColor = [{
@@ -819,11 +829,17 @@ define([
                         vertexBuffer : this._pickColorBuffer,
                         offsetInBytes : vertexPickColorBufferOffset
                     }, {
-                        index : attributeIndices.misc,
+                        index : attributeIndices.offsetDirUV,
                         componentsPerAttribute : 4,
                         componentDatatype : ComponentDatatype.FLOAT,
+                        vertexBuffer : this._offsetDirUVBuffer,
+                        offsetInBytes : vertexOffsetDirUVBufferOffset
+                    }, {
+                        index : attributeIndices.misc,
+                        componentsPerAttribute : 2,
+                        componentDatatype : ComponentDatatype.FLOAT,
                         vertexBuffer : this._miscBuffer,
-                        offsetInBytes : vertexMiscBufferOffset
+                        offsetInBytes : vertexMiscOffset
                     }];
 
                     //if (this._mode === SceneMode.SCENE3D) {
@@ -1050,13 +1066,15 @@ define([
     /**
      * @private
      */
-    PolylineBucket.prototype.write = function(positionArray, otherPositionArray, colorArray, pickColorArray, miscArray, positionIndex, otherPositionIndex, colorIndex, miscIndex, context) {
+    PolylineBucket.prototype.write = function(
+            positionArray, otherPositionArray, colorArray, pickColorArray, offsetDirUVArray, miscArray,
+            positionIndex, otherPositionIndex, colorIndex, offsetDirUVIndex, miscIndex, context) {
         var polylines = this.polylines;
         var length = polylines.length;
         for ( var i = 0; i < length; ++i) {
             var polyline = polylines[i];
-            //var width = polyline.getWidth();
-            //var show = polyline.getShow();
+            var width = polyline.getWidth();
+            var show = polyline.getShow();
             var positions = this._getPositions(polyline);
             var positionsLength = positions.length;
 
@@ -1116,15 +1134,19 @@ define([
                     pickColorArray[colorIndex + 3] = 255;
 
                     offsetDirUvIndex = 4 * k;
-                    miscArray[miscIndex] = offsetDirUv[offsetDirUvIndex];
-                    miscArray[miscIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
-                    miscArray[miscIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
-                    miscArray[miscIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
+                    offsetDirUVArray[offsetDirUVIndex] = offsetDirUv[offsetDirUvIndex];
+                    offsetDirUVArray[offsetDirUVIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
+                    offsetDirUVArray[offsetDirUVIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
+                    offsetDirUVArray[offsetDirUVIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
+
+                    miscArray[miscIndex] = width;
+                    miscArray[miscIndex + 1] = show;
 
                     positionIndex += 6;
                     otherPositionIndex += 6;
                     colorIndex += 4;
-                    miscIndex += 4;
+                    offsetDirUVIndex += 4;
+                    miscIndex += 2;
                 }
 
                 for (var l = 0; l < 4; ++l) {
@@ -1147,15 +1169,19 @@ define([
                     pickColorArray[colorIndex + 3] = 255;
 
                     offsetDirUvIndex = 16 + 4 * l;
-                    miscArray[miscIndex] = offsetDirUv[offsetDirUvIndex];
-                    miscArray[miscIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
-                    miscArray[miscIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
-                    miscArray[miscIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
+                    offsetDirUVArray[offsetDirUVIndex] = offsetDirUv[offsetDirUvIndex];
+                    offsetDirUVArray[offsetDirUVIndex + 1] = offsetDirUv[offsetDirUvIndex + 1];
+                    offsetDirUVArray[offsetDirUVIndex + 2] = offsetDirUv[offsetDirUvIndex + 2];
+                    offsetDirUVArray[offsetDirUVIndex + 3] = offsetDirUv[offsetDirUvIndex + 3];
+
+                    miscArray[miscIndex] = width;
+                    miscArray[miscIndex + 1] = show;
 
                     positionIndex += 6;
                     otherPositionIndex += 6;
                     colorIndex += 4;
-                    miscIndex += 4;
+                    offsetDirUVIndex += 4;
+                    miscIndex += 2;
                 }
 
                 vertexColorIndex += colorIncrement;

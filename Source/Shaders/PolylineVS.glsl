@@ -3,7 +3,8 @@ attribute vec3 position3DLow;
 attribute vec3 otherPosition3DHigh;
 attribute vec3 otherPosition3DLow;
 attribute vec4 color;
-attribute vec4 misc;
+attribute vec4 offsetDirUV;
+attribute vec2 misc;
 
 #ifndef RENDER_FOR_PICK
 varying vec4 v_color;
@@ -16,29 +17,31 @@ varying vec4 v_pickColor;
 uniform float u_morphTime;
 
 const float radius = 100000.0;
-const float invScrRatio = 751.0 / 670.0;
 
 void main() 
 {
-    vec2 offset = misc.xy;
-    vec2 texCoords = misc.zw;
+    vec2 offset = offsetDirUV.xy;
+    vec2 texCoords = offsetDirUV.zw;
+    float width = misc.x;
+    float show = misc.y;
     
-    vec4 p = vec4(czm_translateRelativeToEye(position3DHigh, position3DLow), 1.0);
-    p = czm_modelViewProjectionRelativeToEye * p;
+    vec4 position = vec4(czm_translateRelativeToEye(position3DHigh, position3DLow), 1.0);
+    position = czm_modelViewProjectionRelativeToEye * position;
     
-    vec4 op = vec4(czm_translateRelativeToEye(otherPosition3DHigh, otherPosition3DLow), 1.0);
-    op = czm_modelViewProjectionRelativeToEye * op;
+    vec4 otherPosition = vec4(czm_translateRelativeToEye(otherPosition3DHigh, otherPosition3DLow), 1.0);
+    otherPosition = czm_modelViewProjectionRelativeToEye * otherPosition;
 
     //  line direction in screen space (perspective division required)
-    vec2 lineDirProj = radius * normalize(p.xy / p.ww - op.xy / op.ww);
+    vec2 lineDirProj = radius * normalize(position.xy / position.ww - otherPosition.xy / otherPosition.ww);
 
     // small trick to avoid inversed line condition when points are not on the same side of Z plane
-    if(sign(op.w) != sign(p.w))
+    if(sign(otherPosition.w) != sign(position.w))
         lineDirProj = -lineDirProj;
 
     // offset position in screen space along line direction and orthogonal direction
-    p.xy += lineDirProj.xy                      * offset.xx * vec2(1.0, invScrRatio);
-    p.xy += lineDirProj.yx * vec2(1.0, -1.0)    * offset.yy * vec2(1.0, invScrRatio);
+    float invScrRatio = czm_viewport.z / czm_viewport.w;
+    position.xy += lineDirProj.xy                      * offset.xx * vec2(1.0, invScrRatio);
+    position.xy += lineDirProj.yx * vec2(1.0, -1.0)    * offset.yy * vec2(1.0, invScrRatio);
 
     
 #ifndef RENDER_FOR_PICK
@@ -50,5 +53,5 @@ void main()
     v_pickColor = color;
 #endif
 
-    gl_Position = p;
+    gl_Position = position;
 }

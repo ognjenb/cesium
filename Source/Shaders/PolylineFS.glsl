@@ -1,7 +1,7 @@
 varying vec2 v_textureCoordinates;
 
 void main()
-{
+{	
     czm_materialInput materialInput;
     
     materialInput.s = v_textureCoordinates.s;
