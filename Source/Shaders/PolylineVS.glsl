@@ -16,8 +16,6 @@ varying vec4 v_pickColor;
 
 uniform float u_morphTime;
 
-const float radius = 100000.0;
-
 void main() 
 {
     vec2 offset = offsetDirUV.xy;
@@ -26,11 +24,13 @@ void main()
     float show = misc.y;
     
     vec4 position = vec4(czm_translateRelativeToEye(position3DHigh, position3DLow), 1.0);
+    vec4 positionEC = czm_modelViewRelativeToEye * position;
     position = czm_modelViewProjectionRelativeToEye * position;
     
     vec4 otherPosition = vec4(czm_translateRelativeToEye(otherPosition3DHigh, otherPosition3DLow), 1.0);
     otherPosition = czm_modelViewProjectionRelativeToEye * otherPosition;
 
+	float radius = width * czm_pixelSize * abs(positionEC.z) * 0.5;
     //  line direction in screen space (perspective division required)
     vec2 lineDirProj = radius * normalize(position.xy / position.ww - otherPosition.xy / otherPosition.ww);
 
