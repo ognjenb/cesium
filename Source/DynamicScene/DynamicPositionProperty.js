@@ -1,30 +1,30 @@
 /*global define*/
 define([
-        '../Core/DeveloperError',
-        '../Core/Ellipsoid',
-        '../Core/JulianDate',
-        '../Core/TimeInterval',
-        '../Core/TimeIntervalCollection',
-        '../Core/Iso8601',
         '../Core/Cartesian3',
         '../Core/Cartographic',
+        '../Core/DeveloperError',
+        '../Core/Ellipsoid',
+        '../Core/Iso8601',
+        '../Core/JulianDate',
         '../Core/Matrix3',
         '../Core/ReferenceFrame',
+        '../Core/TimeInterval',
+        '../Core/TimeIntervalCollection',
         '../Core/Transforms',
         './CzmlCartesian3',
         './CzmlCartographic',
         './DynamicProperty'
     ], function(
-        DeveloperError,
-        Ellipsoid,
-        JulianDate,
-        TimeInterval,
-        TimeIntervalCollection,
-        Iso8601,
         Cartesian3,
         Cartographic,
+        DeveloperError,
+        Ellipsoid,
+        Iso8601,
+        JulianDate,
         Matrix3,
         ReferenceFrame,
+        TimeInterval,
+        TimeIntervalCollection,
         Transforms,
         CzmlCartesian3,
         CzmlCartographic,
@@ -92,8 +92,8 @@ define([
         }
 
         var interval = this._cachedInterval;
-        if (this._cachedTime !== time) {
-            this._cachedTime = time;
+        if (!JulianDate.equals(this._cachedTime, time)) {
+            this._cachedTime = JulianDate.clone(time, this._cachedTime);
             if (typeof interval === 'undefined' || !interval.contains(time)) {
                 interval = this._propertyIntervals.findIntervalContainingDate(time);
                 this._cachedInterval = interval;
@@ -136,8 +136,8 @@ define([
         }
 
         var interval = this._cachedInterval;
-        if (this._cachedTime !== time) {
-            this._cachedTime = time;
+        if (!JulianDate.equals(this._cachedTime, time)) {
+            this._cachedTime = JulianDate.clone(time, this._cachedTime);
             if (typeof interval === 'undefined' || !interval.contains(time)) {
                 interval = this._propertyIntervals.findIntervalContainingDate(time);
                 this._cachedInterval = interval;
@@ -375,8 +375,8 @@ define([
         }
 
         var interval = this._cachedInterval;
-        if (this._cachedTime !== time) {
-            this._cachedTime = time;
+        if (!JulianDate.equals(this._cachedTime, time)) {
+            this._cachedTime = JulianDate.clone(time, this._cachedTime);
             if (typeof interval === 'undefined' || !interval.contains(time)) {
                 interval = this._propertyIntervals.findIntervalContainingDate(time);
                 this._cachedInterval = interval;
@@ -416,7 +416,7 @@ define([
         return result;
     };
 
-    DynamicPositionProperty.prototype._getValueRangeInReferenceFrame = function(start, stop, currentTime, referenceFrame, result) {
+    DynamicPositionProperty.prototype._getValueRangeInReferenceFrame = function(start, stop, currentTime, referenceFrame, maximumStep, result) {
         if (typeof start === 'undefined') {
             throw new DeveloperError('start is required');
         }
@@ -468,6 +468,12 @@ define([
             if (typeof nextInterval !== 'undefined' && stop.greaterThan(nextInterval.start)) {
                 loopStop = nextInterval.start;
             }
+
+            var sampling = false;
+            var sampleStepsToTake;
+            var sampleStepsTaken;
+            var sampleStepSize;
+
             var property = interval.data;
             var currentInterval = property._intervals.get(0);
             var times = currentInterval.data.times;
@@ -475,9 +481,10 @@ define([
                 //Iterate over all interval times and add the ones that fall in our
                 //time range.  Note that times can contain data outside of
                 //the intervals range.  This is by design for use with interpolation.
-                var t;
-                for (t = 0; t < times.length; t++) {
-                    current = times[t];
+                var t = 0;
+                var len = times.length;
+                current = times[t];
+                while(t < len) {
                     if (!steppedOnNow && current.greaterThanOrEquals(currentTime)) {
                         tmp = this._getValueInReferenceFrame(currentTime, referenceFrame, result[r]);
                         if (typeof tmp !== 'undefined') {
@@ -491,6 +498,30 @@ define([
                             result[r++] = tmp;
                         }
                     }
+
+                    if (t < (len - 1)) {
+                        if (!sampling) {
+                            var next = times[t + 1];
+                            var secondsUntilNext = current.getSecondsDifference(next);
+                            sampling = secondsUntilNext > maximumStep;
+
+                            if (sampling) {
+                                sampleStepsToTake = Math.floor(secondsUntilNext / maximumStep);
+                                sampleStepsTaken = 0;
+                                sampleStepSize = secondsUntilNext / Math.max(sampleStepsToTake, 2);
+                                sampleStepsToTake = Math.max(sampleStepsToTake - 2, 1);
+                            }
+                        }
+
+                        if (sampling && sampleStepsTaken < sampleStepsToTake) {
+                            current = current.addSeconds(sampleStepSize);
+                            sampleStepsTaken++;
+                            continue;
+                        }
+                    }
+                    sampling = false;
+                    t++;
+                    current = times[t];
                 }
             } else {
                 //If times is undefined, it's because the interval contains a single position

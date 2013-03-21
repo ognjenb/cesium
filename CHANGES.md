@@ -4,10 +4,46 @@ Change Log
 Beta Releases
 -------------
 
-### b14 - 2013-xx-xx
+### b15 - 2013-04-01
 
-* Added a line segment-ray intersection test to `IntersectionTests`.
+* Breaking changes:
+   * `Billboard.computeScreenSpacePosition` now takes `Context` and `FrameState` arguments instead of a `UniformState` argument.
+   * Removed `clampToPixel` property from `BillboardCollection` and `LabelCollection`.  This options is no longer be needed due to overall LabelCollection visualization improvements.
+   * Removed `Widgets/Dojo/CesiumWidget` and replaced it with `Widgets/CesiumWidget`, which has no Dojo dependancies.
+   * `destroyObject` no longer deletes properties from the object being destroyed.  
+* Added `BoundingSphere.fromCornerPoints`.
+* Added `fromArray` and `distance` functions to `Cartesian2`, `Cartesian3`, and `Cartesian4`.
+* Added `DynamicPath.resolution` property for setting the maximum step size, in seconds, to take when sampling a position for path visualization.
+* Added `TileCoordinatesImageryProvider` that renders imagery with tile X, Y, Level coordinates on the surface of the globe.  This is mostly useful for debugging. 
+* Added `DynamicEllipse` and `DynamicObject.ellipse` property to render CZML ellipses on the globe.
+* Added `sampleTerrain` function to sample the terrain height of a list of `Cartographic` positions. 
+
+### b14 - 2013-03-01
+
+* Breaking changes:
+   * Major refactoring of both animation and widgets systems as we move to an MVVM-like architecture for user interfaces.
+      * New `Animation` widget for controlling playback.
+      * AnimationController.js has been deleted.
+      * `ClockStep.SYSTEM_CLOCK_DEPENDENT` was renamed to `ClockStep.SYSTEM_CLOCK_MULTIPLIER`
+      * `ClockStep.SYSTEM_CLOCK` was added to have the clock always match the system time.
+      * `ClockRange.LOOP` was renamed to `ClockRange.LOOP_STOP` and now only loops in the forward direction.
+      * `Clock.reverseTick` was removed, simply negate `Clock.multiplier` and pass it to `Clock.tick`.
+      * `Clock.shouldAnimate` was added to indicate if `Clock.tick` should actually advance time.
+      * The Timeline widget was moved into the Widgets/Timeline subdirectory. 
+      * `Dojo/TimelineWidget` was removed.  You should use the non-toolkit specific Timeline widget directly.
+   * Removed `CesiumViewerWidget.fullScreenElement`, instead use the `CesiumViewerWidget.fullscreen.viewModel.fullScreenElement` observable property.
+   * `IntersectionTests.rayPlane` now takes the new `Plane` type instead of separate `planeNormal` and `planeD` arguments.
+   * Renamed `ImageryProviderError` to `TileProviderError`.
+* Added support for global terrain visualization via `CesiumTerrainProvider`, `ArcGisImageServerTerrainProvider`, and `VRTheWorldTerrainProvider`.  See the [Terrain Tutorial](http://cesium.agi.com/2013/02/15/Cesium-Terrain-Tutorial/) for more information.
+* Added `FullscreenWidget` which is a simple, single-button widget that toggles fullscreen mode of the specified element.
+* Added interactive extent drawing to the `Picking` Sandcastle example.
+* Added `HeightmapTessellator` to create a mesh from a heightmap.
+* Added `JulianDate.equals`
+* Added `Plane` for representing the equation of a plane.
+* Added a line segment-plane intersection test to `IntersectionTests`.
+* Improved the lighting used in 2D and Columbus View modes.  In general, the surface lighting in these modes should look just like it does in 3D.
 * Fixed an issue where a `PolylineCollection` with a model matrix other than the identity would be incorrectly rendered in 2D and Columbus view.
+* Fixed an issue in the `ScreenSpaceCameraController` where disabled mouse events can cause the camera to be moved after being re-enabled.
 
 ### b13 - 2013-02-01
 

@@ -1,4 +1,6 @@
-/*global require,Blob,CodeMirror,JSHINT,gallery_demos*/
+/*global require,Blob,CodeMirror,JSHINT*/
+/*global gallery_demos*/// defined by gallery/gallery-index.js, created by build
+/*global sandcastleJsHintOptions*/// defined by jsHintOptions.js, created by build
 require({
     baseUrl : '../../Source',
     packages : [{
@@ -16,7 +18,6 @@ require({
     }]
 }, [
     'Sandcastle/LinkButton',
-    'Widgets/Dojo/CesiumWidget',
     'Widgets/Dojo/CesiumViewerWidget',
     'dojo/mouse',
     'dojo/on',
@@ -49,7 +50,6 @@ require({
     'dojo/domReady!'
 ], function(
     LinkButton,
-    CesiumWidget,
     CesiumViewerWidget,
     mouse,
     on,
@@ -69,7 +69,6 @@ require({
 
     parser.parse();
 
-    window.CesiumWidget = CesiumWidget; // for autocomplete.
     window.CesiumViewerWidget = CesiumViewerWidget; // for autocomplete.
     fx.fadeOut({
         node : 'loading',
@@ -131,63 +130,6 @@ require({
     var highlightLines = [];
     var searchTerm = '';
     var searchRegExp;
-    var hintGlobals = [
-                       'require',
-                       'document',
-                       'window',
-                       'console',
-                       'Sandcastle',
-                       'Cesium'
-                      ];
-    var hintOptions = {
-        predef : hintGlobals,
-        // These are copied from the Eclipse jsHint plugin options on the Cesium project itself.
-        // They should be kept in sync with that list of options.
-        bitwise : false,
-        camelcase : false,
-        curly : true,
-        eqeqeq : true,
-        forin : true,
-        immed : false,
-        latedef : true,
-        newcap : true,
-        noarg : true,
-        noempty : false,
-        nonew : true,
-        plusplus : false,
-        quotmark : false,
-        regexp : false,
-        undef : true,
-        unused : false,
-        strict : true,
-        trailing : true,
-        asi : false,
-        boss : false,
-        debug : false,
-        eqnull : false,
-        es5 : false,
-        esnext : false,
-        evil : false,
-        expr : false,
-        funcscope : false,
-        globalstrict : false,
-        iterator : false,
-        lastsemic : false,
-        laxbreak : false,
-        laxcomma : false,
-        loopfunc : false,
-        multistr : false,
-        onecase : false,
-        proto : false,
-        regexdash : false,
-        scripturl : false,
-        smarttabs : false,
-        shadow : false,
-        sub : false,
-        supernew : false,
-        validthis : false,
-        browser : true
-    };
     var hintTimer;
 
     var galleryErrorMsg = document.createElement('span');
@@ -373,7 +315,7 @@ require({
                 }
             }
         }
-        if (!JSHINT(code, hintOptions)) {
+        if (!JSHINT(code, sandcastleJsHintOptions)) {
             var hints = JSHINT.errors;
             for (i = 0, len = hints.length; i < len; ++i) {
                 var hint = hints[i];

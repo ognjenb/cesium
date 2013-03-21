@@ -19,11 +19,11 @@
     </script>
     <script data-dojo-config="async: 1, tlmSiblingOfDojo: 0" src="../../../ThirdParty/dojo-release-1.8.3-src/dojo/dojo.js"></script>
     <link rel="stylesheet" href="../../../ThirdParty/dojo-release-1.8.3-src/dijit/themes/claro/claro.css" type="text/css">
-    <link rel="stylesheet" href="../../../Source/Widgets/Dojo/CesiumViewerWidget.css" type="text/css">
 </head>
 <body class="claro sandcastle-loading" data-sandcastle-bucket="bucket-dojo.html" data-sandcastle-title="Cesium + Dojo">
 <style>
     @import url(../templates/bucket.css);
+    @import url(../../../Source/Widgets/Dojo/CesiumViewerWidget.css);
 </style>
 <div id="cesiumContainer" class="fullSize"></div>
 <div id="loadingOverlay"><h1>Loading...</h1></div>
@@ -125,7 +125,7 @@ require([
         clock.startTime = availability.start.clone();
         clock.currentTime = availability.start.clone();
         clock.stopTime = availability.stop.clone();
-        clock.clockRange = Cesium.ClockRange.LOOP;
+        clock.clockRange = Cesium.ClockRange.LOOP_STOP;
 
         return visualizers;
     }
@@ -137,18 +137,15 @@ require([
     widget.startup();
 
     var visualizers = addCZML(czml, widget.scene, widget.clock);
-    widget.timelineControl.zoomTo(widget.clock.startTime, widget.clock.stopTime);
+    widget.timeline.zoomTo(widget.clock.startTime, widget.clock.stopTime);
 
     // Let's make the playback speed faster
     widget.clock.multiplier = 300.0;
 
     // Custom render loop adapted from CesiumViewerWidget.startRenderLoop()
-    var animationController = widget.animationController;
-
     function updateAndRender() {
-        var currentTime = animationController.update();
         widget.initializeFrame();
-        widget.update(currentTime);
+        var currentTime = widget.update();
 
         // Update the visualizers...
         visualizers.update(currentTime);

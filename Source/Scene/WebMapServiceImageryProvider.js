@@ -167,6 +167,19 @@ define([
     };
 
     /**
+     * Gets the proxy used by this provider.
+     *
+     * @memberof WebMapServiceImageryProvider
+     *
+     * @returns {Proxy} The proxy.
+     *
+     * @see DefaultProxy
+     */
+    WebMapServiceImageryProvider.prototype.getProxy = function() {
+        return this._proxy;
+    };
+
+    /**
      * Gets the names of the WMS layers, separated by commas.
      *
      * @memberof WebMapServiceImageryProvider
@@ -289,7 +302,7 @@ define([
     /**
      * Gets an event that is raised when the imagery provider encounters an asynchronous error.  By subscribing
      * to the event, you will be notified of the error and can potentially recover from it.  Event listeners
-     * are passed an instance of {@link ImageryProviderError}.
+     * are passed an instance of {@link TileProviderError}.
      *
      * @memberof WebMapServiceImageryProvider
      *
