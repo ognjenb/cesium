@@ -35,17 +35,13 @@
 
     // Custom render loop. See "startRenderLoop".
     function updateAndRender() {
-        // Standard render loop: Update to new time.
-        var currentTime = viewer.animationController.update();
-        viewer.initializeFrame(currentTime);
-        viewer.update(currentTime);
+        viewer.updateAndRender();
 
         // Customization: Display current time.
+        var currentTime = viewer.clock.currentTime;
         document.getElementById('toolbar').innerHTML =
             currentTime.toDate().toUTCString();
 
-        // Standard render loop: Render & re-schedule.
-        viewer.render();
         Cesium.requestAnimationFrame(updateAndRender);
     }
 

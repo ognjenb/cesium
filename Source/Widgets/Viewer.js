@@ -1,17 +1,21 @@
 /*global define,console*/
 define([
+        './Timeline/Timeline',
+        './Animation/Animation',
+        './Animation/AnimationViewModel',
+        './Fullscreen/FullscreenWidget',
+        './ClockViewModel',
         '../Core/buildModuleUrl',
         '../Core/defaultValue',
         '../Core/loadJson',
+        '../Core/binarySearch',
         '../Core/BoundingRectangle',
         '../Core/Clock',
         '../Core/ClockStep',
         '../Core/ClockRange',
         '../Core/Extent',
-        '../Core/AnimationController',
         '../Core/Ellipsoid',
         '../Core/Iso8601',
-        '../Core/Fullscreen',
         '../Core/computeSunPosition',
         '../Core/ScreenSpaceEventHandler',
         '../Core/FeatureDetection',
@@ -43,18 +47,23 @@ define([
         '../DynamicScene/DynamicObjectCollection',
         '../DynamicScene/VisualizerCollection'
     ], function(
+
+        Timeline,
+        Animation,
+        AnimationViewModel,
+        FullscreenWidget,
+        ClockViewModel,
         buildModuleUrl,
         defaultValue,
         loadJson,
+        binarySearch,
         BoundingRectangle,
         Clock,
         ClockStep,
         ClockRange,
         Extent,
-        AnimationController,
         Ellipsoid,
         Iso8601,
-        Fullscreen,
         computeSunPosition,
         ScreenSpaceEventHandler,
         FeatureDetection,
@@ -209,6 +218,8 @@ define([
      * var endUserOptions = {
      *     'source' : 'file.czml', // The relative URL of the CZML file to load at startup.
      *     'lookAt' : '123abc',    // The CZML ID of the object to track at startup.
+     *     'theme'  : 'light',     // Use the dark-text-on-light-background theme.
+     *     'loop'   : 0,           // Disable looping at end time, pause there instead.
      *     'stats'  : 1,           // Enable the FPS performance display.
      *     'debug'  : 1,           // Full WebGL error reporting at substantial performance cost.
      * };
@@ -294,6 +305,8 @@ define([
             frustum.top = frustum.right * (height / width);
             frustum.bottom = -frustum.top;
         }
+
+        //this.setLogoOffset(this.cesiumLogo.offsetWidth + this.cesiumLogo.offsetLeft + 10, 28);
     };
     /**
      * Have the camera track a particular object based on the result of a pick.
@@ -496,10 +509,6 @@ define([
     Viewer.prototype.setTimeFromBuffer = function() {
         var clock = this.clock;
 
-        //this.animReverse.set('checked', false);
-        //this.animPause.set('checked', true);
-        //this.animPlay.set('checked', false);
-
         var availability = this.dynamicObjectCollection.computeAvailability();
         if (availability.start.equals(Iso8601.MINIMUM_VALUE)) {
             clock.startTime = new JulianDate();
@@ -617,8 +626,6 @@ define([
         }
         this._started = true;
 
-        this.resize();
-
         canvas.oncontextmenu = function() {
             return false;
         };
@@ -665,7 +672,6 @@ define([
         scene.skyAtmosphere = new SkyAtmosphere(ellipsoid);
 
         var camera = scene.getCamera();
-        camera.position = camera.position.multiplyByScalar(1.5);
         camera.controller.constrainedAxis = Cartesian3.UNIT_Z;
 
         var handler = new ScreenSpaceEventHandler(canvas);
@@ -706,25 +712,22 @@ define([
             //on(dropBox, 'dragexit', event.stop);
         }
 
-        var currentTime = new JulianDate();
-        if (typeof this.animationController === 'undefined') {
-            if (typeof this.clock === 'undefined') {
-                this.clock = new Clock({
-                    startTime : currentTime.addDays(-0.5),
-                    stopTime : currentTime.addDays(0.5),
-                    currentTime : currentTime,
-                    clockStep : ClockStep.SYSTEM_CLOCK_DEPENDENT,
-                    multiplier : 1
-                });
-            }
-            this.animationController = new AnimationController(this.clock);
-        } else {
-            this.clock = this.animationController.clock;
+        var animationViewModel = this.animationViewModel;
+        if (typeof animationViewModel === 'undefined') {
+            var clockViewModel = new ClockViewModel();
+            clockViewModel.owner = this;
+            clockViewModel.shouldAnimate(true);
+            animationViewModel = new AnimationViewModel(clockViewModel);
         }
+        this.animationViewModel = animationViewModel;
+        this.clockViewModel = animationViewModel.clockViewModel;
 
-        var animationController = this.animationController;
-        var dynamicObjectCollection = this.dynamicObjectCollection = new DynamicObjectCollection();
+        this.clock = this.clockViewModel.clock;
         var clock = this.clock;
+
+        //this.animation = new Animation(this.animationContainer, animationViewModel);
+
+        var dynamicObjectCollection = this.dynamicObjectCollection = new DynamicObjectCollection();
         var transitioner = this.sceneTransitioner = new SceneTransitioner(scene);
         this.visualizers = VisualizerCollection.createCzmlStandardCollection(scene, dynamicObjectCollection);
 
@@ -743,6 +746,8 @@ define([
         }
 
         this._camera3D = this.scene.getCamera().clone();
+
+        this.resize();
 
         if (this.autoStartRenderLoop) {
             this.startRenderLoop();
@@ -918,10 +923,9 @@ define([
      * Initialize the current frame.
      * @function
      * @memberof Viewer.prototype
-     * @param {JulianDate} currentTime - The date and time in the scene of the frame to be rendered
      */
-    Viewer.prototype.initializeFrame = function(currentTime) {
-        this.scene.initializeFrame(currentTime);
+    Viewer.prototype.initializeFrame = function() {
+        this.scene.initializeFrame();
     };
 
     /**
@@ -932,8 +936,13 @@ define([
      * @memberof Viewer.prototype
      * @param {JulianDate} currentTime - The date and time in the scene of the frame to be rendered
      */
-    Viewer.prototype.update = function(currentTime) {
-
+    Viewer.prototype.update = function() {
+        var currentTime;
+        if (this.clockViewModel.owner === this) {
+            currentTime = this.clock.tick();
+        } else {
+            currentTime = this.clock.currentTime;
+        }
         this.visualizers.update(currentTime);
 
         // Update the camera to stay centered on the selected object, if any.
@@ -948,8 +957,8 @@ define([
      * @function
      * @memberof Viewer.prototype
      */
-    Viewer.prototype.render = function() {
-        this.scene.render();
+    Viewer.prototype.render = function(currentTime) {
+        this.scene.render(currentTime);
     };
 
     Viewer.prototype._setLoading = function(isLoading) {
@@ -1008,9 +1017,20 @@ define([
     Viewer.prototype.autoStartRenderLoop = true;
 
     /**
+     * Updates and renders the scene to reflect the current time.
+     *
+     * @function
+     * @memberof Viewer.prototype
+     */
+    Viewer.prototype.updateAndRender = function() {
+        this.initializeFrame();
+        this.render(this.update());
+    };
+
+    /**
      * This is a simple render loop that can be started if there is only one <code>Viewer</code> widget
      * on your page.  If you wish to customize your render loop, avoid this function and instead
-     * use code similar to one of the following examples.
+     * use code similar to the following example.
      *
      * @function
      * @memberof Viewer.prototype
@@ -1018,61 +1038,19 @@ define([
      * @see Viewer#autoStartRenderLoop
      * @example
      * // This takes the place of startRenderLoop for a single widget.
-     *
-     * var animationController = widget.animationController;
-     * function updateAndRender() {
-     *     var currentTime = animationController.update();
-     *     widget.initializeFrame(currentTime);
-     *     widget.update(currentTime);
-     *     widget.render();
-     *     requestAnimationFrame(updateAndRender);
-     * }
-     * requestAnimationFrame(updateAndRender);
-     * @example
-     * // This example requires widget1 and widget2 to share an animationController
-     * // (for example, widget2's constructor was called with a copy of widget1's
-     * // animationController).
-     *
-     * function updateAndRender() {
-     *     var currentTime = animationController.update();
-     *     widget1.initializeFrame(currentTime);
-     *     widget2.initializeFrame(currentTime);
-     *     widget1.update(currentTime);
-     *     widget2.update(currentTime);
-     *     widget1.render();
-     *     widget2.render();
-     *     requestAnimationFrame(updateAndRender);
-     * }
-     * requestAnimationFrame(updateAndRender);
-     * @example
-     * // This example uses separate animationControllers for widget1 and widget2.
-     * // These widgets can animate at different rates and pause individually.
-     *
-     * function updateAndRender() {
-     *     var time1 = widget1.animationController.update();
-     *     var time2 = widget2.animationController.update();
-     *     widget1.initializeFrame(time1);
-     *     widget2.initializeFrame(time2);
-     *     widget1.update(time1);
-     *     widget2.update(time2);
-     *     widget1.render();
-     *     widget2.render();
-     *     requestAnimationFrame(updateAndRender);
-     * }
-     * requestAnimationFrame(updateAndRender);
+     *  var widget = this;
+     *  function updateAndRender() {
+     *      widget.updateAndRender();
+     *      requestAnimationFrame(updateAndRender);
+     *  }
+     *  requestAnimationFrame(updateAndRender);
      */
     Viewer.prototype.startRenderLoop = function() {
         var widget = this;
-        var animationController = widget.animationController;
-
         function updateAndRender() {
-            var currentTime = animationController.update();
-            widget.initializeFrame(currentTime);
-            widget.update(currentTime);
-            widget.render();
+            widget.updateAndRender();
             requestAnimationFrame(updateAndRender);
         }
-
         requestAnimationFrame(updateAndRender);
     };
 
