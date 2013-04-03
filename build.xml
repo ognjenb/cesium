@@ -27,7 +27,15 @@
 		<createSandcastleJsHintOptions output="${sandcastleDirectory}/jsHintOptions.js" jshintoptions="${jsHintEclipseSettings.options}" />
 	</target>
 
-	<target name="combine" description="Combines all source files into a single stand-alone script." depends="build, combineJavaScript" />
+	<target name="combine" description="Combines all source files into a single stand-alone script." depends="build, combineJavaScript">
+		<copy todir="Build">
+			<fileset dir="Apps/">
+				<include name="HelloWorld.html" />
+			</fileset>
+		</copy>
+
+		<replace file="Build/HelloWorld.html" token="../Build/" value="" />
+	</target>
 
 	<target name="minify" description="Combines all source files into a single stand-alone, minified script.">
 		<delete includeEmptyDirs="true" failonerror="false">
@@ -55,6 +63,17 @@
 
 	<target name="makeZipFile" description="Builds a zip file containing all release files." depends="release">
 		<zip destfile="Cesium-${version}.zip" basedir="${basedir}">
+			<fileset dir="Build">
+				<include name="Cesium/**" />
+				<include name="Documentation/**" />
+				<include name="HelloWorld.html" />
+			</fileset>
+			<include name="LICENSE.md" />
+			<include name="CHANGES.md" />
+			<include name="README.md" />
+		</zip>
+
+		<zip destfile="Cesium-full-${version}.zip" basedir="${basedir}">
 			<include name="Build/**" />
 			<include name="Apps/**" />
 			<include name="Examples/**" />
@@ -82,9 +101,14 @@
 	<!-- properties controlling which steps get run -->
 	<property name="build.minification" value="false" />
 
+	<!-- properties controlling how to run the server-->
+	<property name="runServer.public" value="false" />
+	<property name="runServer.port" value="8080" />
+	<property name="runServer.allowedHosts" value="localhost,*.arcgisonline.com,tile.openstreetmap.org,otile1.mqcdn.com,oatile1.mqcdn.com,tile.stamen.com,*.virtualearth.net,mesonet.agron.iastate.edu" />
+
 	<!-- Inputs -->
 	<!-- this version should be set to the upcoming version, so it can be tagged without requiring a bump first -->
-	<property name="version" value="b14" />
+	<property name="version" value="b15" />
 	<property name="sourceDirectory" location="Source" />
 	<property name="shadersDirectory" location="${sourceDirectory}/Shaders" />
 	<property name="examplesDirectory" location="Examples" />
@@ -314,9 +338,14 @@
 		 upstreamProxyHost: a standard proxy server that the local server will use to retrieve data
 		 upstreamProxyPort: the port number of the upstream proxy, default 80
 		 noUpstreamProxyHostList: A comma-separated list of hosts that will not use the upstreamProxy
-		 listenOnAllAddresses: Set to true if you want the server to listen to all addresses, not just localhost.
 		-->
-		<server proxyContextPath="/proxy" terrainTranscodingContextPath="/terrain" allowedHostList="localhost,*.arcgisonline.com,tile.openstreetmap.org,otile1.mqcdn.com,oatile1.mqcdn.com,tile.stamen.com,*.virtualearth.net,mesonet.agron.iastate.edu" port="8080" baseDir="${basedir}" />
+		<server listenOnAllAddresses="${runServer.public}" allowedHostList="${runServer.allowedHosts}" port="${runServer.port}" baseDir="${basedir}" proxyContextPath="/proxy" terrainTranscodingContextPath="/terrain" />
+	</target>
+
+	<target name="runPublicServer" description="Runs a public web server">
+		<antcall target="runServer">
+			<param name="runServer.public" value="true" />
+		</antcall>
 	</target>
 
 	<target name="buildApps" description="Create built versions of all example applications.">
