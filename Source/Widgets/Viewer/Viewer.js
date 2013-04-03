@@ -996,8 +996,15 @@ Earth at night as seen by NASA/NOAA\'s Suomi NPP satellite.',
 
         if (this.enableDragDrop) {
             var dropBox = this.parentNode;
+            var eventStop = function(e) {
+                e.stopPropagation();
+                e.preventDefault();
+            };
             // The third parameter "useCapture" is true to catch drops on any sub-widget.
             dropBox.addEventListener('drop', function (e) { that.handleDrop(e); }, true);
+            dropBox.addEventListener('dragenter', eventStop, true);
+            dropBox.addEventListener('dragover', eventStop, true);
+            dropBox.addEventListener('dragexit', eventStop, true);
         }
 
         this.fullscreen = new FullscreenWidget(this.fullscreenContainer, this.containerNode);
