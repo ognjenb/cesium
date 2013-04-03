@@ -3,7 +3,7 @@ define([
         'dojo/_base/declare',
         'dijit/_WidgetBase',
         'dijit/_TemplatedMixin',
-        '../Viewer'
+        '../Viewer/Viewer'
     ], function (
         declare,
         _WidgetBase,
