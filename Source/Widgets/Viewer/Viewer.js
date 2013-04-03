@@ -15,6 +15,7 @@ define([
         '../../Core/Clock',
         '../../Core/ClockStep',
         '../../Core/ClockRange',
+        '../../Core/DeveloperError',
         '../../Core/Extent',
         '../../Core/Ellipsoid',
         '../../Core/Iso8601',
@@ -65,6 +66,7 @@ define([
         Clock,
         ClockStep,
         ClockRange,
+        DeveloperError,
         Extent,
         Ellipsoid,
         Iso8601,
@@ -287,6 +289,18 @@ Earth at night as seen by NASA/NOAA\'s Suomi NPP satellite.',
      * @param {Object} options - A list of options to pre-configure the widget.  Names matching member fields/functions will override the default values.
      */
     var Viewer = function(parentNode, options) {
+        if (typeof parentNode === 'undefined') {
+            throw new DeveloperError('parentNode is required.');
+        }
+
+        if (typeof parentNode === 'string') {
+            var tmp = document.getElementById(parentNode);
+            if (tmp === null) {
+                throw new DeveloperError('Element with id "' + parentNode + '" does not exist in the document.');
+            }
+            parentNode = tmp;
+        }
+
         this.parentNode = parentNode;
 
         // Copy all options to this.
