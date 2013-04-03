@@ -36,12 +36,11 @@
 (function () {
     "use strict";
 
-    var viewer = new Cesium.Viewer($('#cesiumContainer')[0], {
+    var viewer = new Cesium.Viewer('cesiumContainer', {
         endUserOptions : {
             source : '../../CesiumViewer/Gallery/simple.czml'
         }
     });
-
 
     // Create toolbar template
     $('#toolbar').html(
