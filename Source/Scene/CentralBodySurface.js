@@ -419,24 +419,28 @@ define([
             // This one doesn't load children unless we refine to them.
             // We may want to revisit this in the future.
 
-            if (screenSpaceError(surface, context, frameState, cameraPosition, cameraPositionCartographic, tile) < surface._maxScreenSpaceError) {
+            if (tile.preventRender !== true && screenSpaceError(surface, context, frameState, cameraPosition, cameraPositionCartographic, tile) < surface._maxScreenSpaceError) {
                 // This tile meets SSE requirements, so render it.
                 addTileToRenderList(surface, tile);
-            } else if (queueChildrenLoadAndDetermineIfChildrenAreAllRenderable(surface, frameState, tile)) {
+            } else {
+                var preventRender = typeof tile.preventRender === 'undefined' ? false : tile.preventRender;
+                if (!preventRender && !queueChildrenLoadAndDetermineIfChildrenAreAllRenderable(surface, frameState, tile)) {
+                    addTileToRenderList(surface, tile);
+                    preventRender = true;
+                }
                 // SSE is not good enough and children are loaded, so refine.
-                var children = tile.children;
+                var children = tile.getChildren();
                 // PERFORMANCE_IDEA: traverse children front-to-back so we can avoid sorting by distance later.
                 for (i = 0, len = children.length; i < len; ++i) {
+                    children[i].preventRender = preventRender;
                     if (isTileVisible(surface, frameState, children[i])) {
-                        traversalQueue.enqueue(children[i]);
+                        if (!preventRender && children[i].state.value > TileState.START.value) {
+                            traversalQueue.enqueue(children[i]);
+                        }
                     } else {
                         ++debug.tilesCulled;
                     }
                 }
-            } else {
-                ++debug.tilesWaitingForChildren;
-                // SSE is not good enough but not all children are loaded, so render this tile anyway.
-                addTileToRenderList(surface, tile);
             }
         }
 
